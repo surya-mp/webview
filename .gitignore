@@ -1,0 +1,8 @@
+# Go build output
+*.exe
+*.test
+*.out
+/webview
+
+# OS/editor state
+.DS_Store
