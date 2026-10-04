@@ -1,11 +1,13 @@
 # webview
 
-`webview` runs an existing web application inside one native desktop window.
-The page, routes, assets, and UI remain the same; the package adds no browser
-chrome and no frontend framework.
+`webview` runs an existing Go web application in a chrome-free native window.
+The public package is pure Go: it uses no CGo, native headers, or Go module
+dependencies. It launches a prebuilt platform host beside the application
+instead of compiling native UI code into every consuming app.
 
-It owns platform backends directly—WKWebView on macOS, WebView2 on Windows,
-and WebKitGTK on Linux. There are no third-party Go module dependencies.
+The host uses WKWebView on macOS, WebView2 on Windows, and WebKitGTK on Linux.
+It is not Safari, Edge, or Firefox as an application; it is a small native
+window around each operating system's browser engine.
 
 ## Install
 
@@ -13,36 +15,39 @@ and WebKitGTK on Linux. There are no third-party Go module dependencies.
 go get github.com/surya-mp/webview
 ```
 
-## Quick start: existing Go handler
+On macOS (Apple silicon and Intel), the matching host is embedded and extracted
+automatically, so `go run` needs no flags, host path, or setup command. A release embeds the
+matching host artifact for each supported target. External hosts remain an
+optional override and are found in this order: `Options.HostPath`, beside the
+application executable, then on `PATH`.
+
+## Quick start
 
 ```go
 package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 
 	"github.com/surya-mp/webview"
 )
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("<h1>Same web app, native window</h1>"))
+		_, _ = w.Write([]byte("<h1>Same web app, native shell</h1>"))
 	})
 
-	err := webview.Run(context.Background(), webview.Options{
-		Title:   "Example",
-		Handler: mux,
-		Menu: []webview.MenuItem{{
-			ID: "file", Label: "File", Children: []webview.MenuItem{{
-				ID: "quit", Label: "Quit", Shortcut: "cmd+q",
-				Action: func(context.Context) error { return nil },
-			}},
-		}},
-	})
-	if err != nil {
+	err := webview.Run(ctx, webview.Options{Title: "Example", Handler: mux})
+	if err != nil && !errors.Is(err, context.Canceled) {
 		log.Fatal(err)
 	}
 }
@@ -51,58 +56,60 @@ func main() {
 `Handler` starts a loopback-only server. Existing absolute and relative routes
 continue to work. See [examples/local](examples/local) for a runnable version.
 
-## Hosted application
-
-Use `StartURL` when the application already runs elsewhere. It is mutually
-exclusive with `Handler`.
+For a deployed app, use `StartURL` instead of `Handler`:
 
 ```go
-err := webview.Run(context.Background(), webview.Options{
+err := webview.Run(ctx, webview.Options{
 	Title:    "Example",
 	StartURL: "https://app.example.com/",
 })
 ```
 
-See [examples/remote](examples/remote).
+## Host distribution
 
-## Navigation and native UI
+Build hosts only in this repository's release pipeline; consuming applications
+do not need native compilers, headers, or host-launch commands. Both macOS
+artifacts are embedded in the module for local `go run` development. Build the
+other platform artifacts on their target systems before their release.
 
-- Same-origin navigations, `target="_blank"`, and `window.open()` remain in
-  the one shell window.
-- A different scheme, host, or port opens in the default system browser.
-- macOS provides native menus, upload/save dialogs, JavaScript dialogs,
-  downloads, print dialogs, permission prompts, and navigation errors.
-- `App.Print` opens the platform print dialog. Receive the `App` in `OnReady`.
-- `PermissionPolicy` can return `PermissionPrompt`, `PermissionAllow`, or
-  `PermissionDeny` for camera, microphone, location, and motion requests.
+```sh
+# macOS arm64 or x86_64, on the matching Mac
+scripts/build-host-macos.sh
 
-## Platform prerequisites
+# Linux, on the target distribution
+scripts/build-host-linux.sh
+```
 
-| Platform | Build/runtime requirement | Status |
-| --- | --- | --- |
-| macOS | Xcode command-line tools; system Cocoa/WebKit | Builds and unit-tests in this repository; complete the UI runbook before release. |
-| Linux | `CGO_ENABLED=1`, GTK3 and WebKitGTK 4.1 development/runtime libraries | Native backend requires target-system validation. |
-| Windows | `CGO_ENABLED=1`, a C++ toolchain, WebView2 SDK header, `WebView2Loader.dll`, and Evergreen WebView2 Runtime | Native backend requires target-system validation. |
+On Windows, run `scripts/build-host-windows.ps1` from a Visual Studio developer
+shell with `WEBVIEW2_INCLUDE` pointing to the WebView2 SDK include directory.
+The build scripts produce the artifact that is embedded for its matching
+platform release. `HostPath` is only for development overrides. Do not download
+a host at application runtime; ship a versioned, checksummed artifact with the
+application instead.
 
-For Linux packages, see [operations](docs/operations.md). For macOS camera or
-microphone access, the app bundle must include the relevant `Info.plist` usage
-descriptions.
+## Behavior and boundaries
+
+- The host window has no address bar, browser tabs, or browser toolbar.
+- Same-origin navigation and popups remain in the host. Another origin opens in
+  the operating system's default browser.
+- The macOS host provides native JavaScript dialogs and file-selection panels.
+- Closing the host window ends `Run` and shuts down a handler-backed server.
+- Static Go-defined menus, Go/JavaScript bridges, and app-level permission
+  policy are not implemented by the sidecar protocol.
+
+The platform browser runtime remains an operating-system dependency: macOS
+supplies WebKit, Windows requires the WebView2 Runtime, and Linux requires
+WebKitGTK. The full contract is in [WEBVIEW-SPEC.md](WEBVIEW-SPEC.md).
 
 ## Development
 
 ```sh
-go test ./...
-go vet ./...
+CGO_ENABLED=0 go test ./...
+CGO_ENABLED=0 go vet ./...
 ```
 
 Before release, follow the [platform verification runbook](docs/operations.md)
 and [release checklist](docs/release.md).
-
-## Compatibility and security
-
-The shell intentionally supports one window and static startup menus. It does
-not sandbox untrusted content. In `StartURL` mode, treat the loaded origin as
-trusted application content. The full contract is in [WEBVIEW-SPEC.md](WEBVIEW-SPEC.md).
 
 ## License
 

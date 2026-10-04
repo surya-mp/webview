@@ -3,6 +3,12 @@
 *.test
 *.out
 /webview
+/dist/
+/internal/hostbin/*/
+!/internal/hostbin/darwin_arm64/
+!/internal/hostbin/darwin_arm64/webview-host
+!/internal/hostbin/darwin_amd64/
+!/internal/hostbin/darwin_amd64/webview-host
 
 # OS/editor state
 .DS_Store

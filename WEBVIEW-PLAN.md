@@ -1,80 +1,26 @@
 # webview development plan
 
-## Decisions to confirm before implementation
+## Implemented
 
-1. Build first-party platform backends directly on WKWebView, WebView2, and
-   WebKitGTK. Do not add a third-party Go webview dependency.
-2. Keep native menus in those build-tagged backends; do not introduce a
-   desktop framework solely to obtain menu APIs.
-3. Implement one navigation policy on every backend: same-origin navigation
-   and popups stay in the current window; another origin opens in the default
-   browser.
+1. Keep the public package pure Go and buildable with `CGO_ENABLED=0`.
+2. Start handler applications on a private loopback server.
+3. Locate and run a versioned native sidecar host, passing only startup URL and
+   window metadata through command-line arguments.
+4. End `Run` when the host exits or its context is cancelled.
+5. Provide native-host sources and release build scripts for macOS, Windows,
+   and Linux without making them dependencies of consuming Go builds.
 
-## Phase 1 — Package skeleton and option validation
+## Release work
 
-- Create `go.mod` and package documentation.
-- Define the public `Options`, `MenuItem`, and `Run` API from `SPEC.md`.
-- Implement complete validation: required handler, dimensions, start path,
-  menu IDs/labels, duplicate IDs, and invalid action/submenu combinations.
-- Add table-driven unit tests for validation and defaults.
+1. Build each host on its target OS/architecture.
+2. Code-sign macOS and Windows artifacts; publish checksums.
+3. Package the correct artifact next to each consuming application executable.
+4. Complete native UI checks for navigation, popups, uploads, downloads,
+   printing, permissions, and close behavior.
 
-**Exit condition:** invalid input fails before listeners or native resources
-are created.
+## Boundaries
 
-## Phase 2 — Private application server
-
-- Implement an internal loopback server using an ephemeral port.
-- Serve the supplied handler unchanged so existing absolute and relative app
-  routes preserve their browser behavior.
-- Implement context-aware graceful shutdown and unit/integration tests proving
-  that all application routes are reachable through the generated origin.
-
-**Exit condition:** `Run` can own and cleanly stop a private HTTP endpoint
-independently of a real window.
-
-## Phase 3 — Webview backend and lifecycle
-
-- Wrap the selected binding in an internal interface used solely to allow
-  deterministic lifecycle tests; keep that interface unexported.
-- Implement window creation, title/size defaults, navigation, close handling,
-  UI-thread dispatch, context cancellation, and one-time teardown.
-- Translate missing-runtime and native-startup failures into package errors
-  with platform remediation.
-- Test terminal-event races using a fake internal backend; add an optional
-  manual smoke-test example for each supported desktop OS.
-
-**Exit condition:** a minimal handler opens a chrome-free native window and
-`Run` returns exactly once on every terminal path.
-
-## Phase 4 — Menus
-
-- Convert the validated menu tree to a backend-neutral internal model.
-- Implement macOS global menu-bar installation in a Darwin build-tagged file,
-  preserving application/Quit items.
-- Implement native in-window menu bars for Windows and Linux where the
-  backend supports them; otherwise implement a small accessible HTML fallback
-  injected by the shell, with no application API changes.
-- Dispatch menu actions off the UI thread; reject re-entry and route an action
-  error through the common shutdown path.
-- Add platform-independent model/dispatch tests and OS-gated smoke checks for
-  visual placement and shortcuts.
-
-**Exit condition:** the same `Options.Menu` model works on all supported OSes,
-with macOS menus in the top system panel.
-
-## Phase 5 — Documentation, examples, and release checks
-
-- Write a short README with installation prerequisites, a minimal handler
-  example, menu example, limitations, and cross-compilation notes.
-- Add CI for formatting, `go vet`, unit tests, and native build checks on
-  macOS, Windows, and Linux (installing WebKitGTK development packages on
-  Linux).
-- Add a manual release checklist that verifies close behavior, external-link
-  policy, menu placement, disabled actions, and missing-runtime diagnostics.
-- Tag the first release only after all acceptance criteria in `SPEC.md` pass.
-
-## Deliberate v0 cuts
-
-Use one window, one local handler, and static startup menus. Add multi-window
-coordination, a richer Go↔web bridge, or dynamic menu APIs only after a real
-consumer needs them; each changes lifecycle and compatibility commitments.
+The sidecar is deliberate: it is the smallest way to use system browser
+engines while keeping application builds CGo-free. Do not replace it with a
+runtime download, a bundled Chromium distribution, or a Go/JavaScript bridge
+without a concrete product need.
