@@ -88,7 +88,7 @@ func findHost(configured string) (string, error) {
 	if path, err := exec.LookPath(name); err == nil {
 		return path, nil
 	}
-	return "", fmt.Errorf("%w: place %q beside the application, add it to PATH, or set Options.HostPath", ErrHostNotFound, name)
+	return "", fmt.Errorf("%w: package %q with the application, add it to PATH, or set Options.HostPath", ErrHostNotFound, name)
 }
 
 func hostName() string {

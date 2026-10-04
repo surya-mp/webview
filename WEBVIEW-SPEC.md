@@ -2,11 +2,11 @@
 
 ## Purpose
 
-`webview` is a pure-Go package that starts a web application in a prebuilt
-native sidecar host. The application code compiles with `CGO_ENABLED=0`; native
-browser bindings are compiled once into separate release artifacts.
+`webview` runs an existing web application in one native desktop window. It is
+a window host, not a web framework: callers keep their existing HTTP handler
+or deployed URL, frontend, routes, and application state.
 
-## Public API
+## API
 
 ```go
 type Options struct {
@@ -22,42 +22,47 @@ type Options struct {
 func Run(context.Context, Options) error
 ```
 
-Exactly one of `Handler` and `StartURL` is required. A handler is served only
-on an ephemeral loopback listener. `StartURL` must be an absolute HTTP(S) URL.
-`StartPath` is handler-only, defaults to `/`, and must be a clean absolute path.
-`Title` defaults to the executable name; dimensions default to 1024×768.
+Exactly one of `Handler` and `StartURL` is required. `StartURL` must be an
+absolute HTTP(S) URL. `StartPath` applies only to `Handler`, must be a clean
+absolute path, and defaults to `/`. Width and height must not be negative and
+default independently to 1024 and 768. Title defaults to the executable name.
 
-`Run` validates options, starts the loopback server when needed, starts the
-host with `--url`, `--title`, `--width`, and `--height`, then waits for the host
-to exit. Context cancellation terminates the host process and returns
-`ctx.Err()`.
+`HostPath` overrides normal host discovery. It must point to a compatible host
+executable that accepts the documented startup arguments.
 
-## Host discovery and distribution
+## Lifecycle
 
-The matching host is embedded in the Go binary and extracted automatically at
-runtime. `HostPath`, a host beside the application executable, and `PATH` are
-optional overrides/fallbacks. Failure returns `ErrHostNotFound`.
+`Run` validates before starting any resources. In handler mode it starts a
+loopback-only HTTP server, then starts the host with:
 
-Releases must distribute one code-signed/checksummed host executable for every
-supported OS and architecture. The package must never compile a host or
-download one at a consuming application's build or runtime.
+```text
+--url <url> --title <title> --width <width> --height <height>
+```
 
-## Platform behavior
+It waits for the host process. An ordinary host exit returns `nil`. Cancelling
+the supplied context terminates the host and returns `ctx.Err()`. A
+handler-backed server is shut down before `Run` returns.
 
-| Platform | Host engine | Status |
-| --- | --- | --- |
-| macOS | WKWebView | Source builds on macOS; target UI verification required. |
-| Windows | WebView2 | Source requires target build and WebView2 Runtime verification. |
-| Linux | WebKitGTK | Source requires target build and GTK/WebKitGTK verification. |
+## Navigation policy
 
-The host has no browser chrome. Same-origin main-frame navigation stays in the
-host; another origin opens in the default browser. Browser-engine dialogs and
-permissions remain native-host concerns, not Go APIs.
+The intended policy across hosts is one window and one trusted origin. A URL
+with the initial scheme, host, and effective port stays in the host. A URL with
+another origin is handed to the operating system's default browser. New-window
+requests follow the same rule.
 
-## Non-goals
+## Native host behavior
 
-- A browser engine implemented in Go, a Safari process launcher, or CGo in the
-  public Go package.
-- Runtime host downloads, browser bundling, or automatic updates.
-- Go/JavaScript bridges, Go-defined menus, dynamic host control, or multiple
-  windows in v0.
+Hosts are responsible for native window creation and web-engine integration.
+The macOS host creates a resizable, titled WKWebView window with a minimal app
+menu. It routes JavaScript dialogs and file selection to native panels.
+
+The Windows and Linux host sources provide the same one-window launch and
+navigation model using WebView2 and WebKitGTK respectively. They require
+target-system build and UI verification before release.
+
+## Deliberate limits
+
+- One window per `Run` invocation; no tabs or address bar.
+- No Go/JavaScript bridge or page scripting API.
+- No Go-defined application menus or dynamic window controls.
+- No built-in updater, host downloader, or application sandbox.

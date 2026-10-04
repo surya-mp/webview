@@ -1,11 +1,13 @@
 # Release checklist
 
-1. Run `CGO_ENABLED=0 go test ./...` and `CGO_ENABLED=0 go vet ./...` on macOS, Linux, and Windows.
-2. Build, sign, checksum, and target-test every `webview-host` artifact.
-3. Complete every item in the platform verification runbook.
-4. Confirm `go list -m` reports the intended module path and `go mod tidy`
-   leaves no unexpected changes.
-5. Review exported API changes for semantic-versioning impact and update the
-   README, specification, and examples together.
-6. Tag the commit as `vMAJOR.MINOR.PATCH`, push the tag, and verify a clean
-   sample module can fetch it with `go get github.com/surya-mp/webview@<tag>`.
+1. Run `go test ./...` and `go vet ./...`.
+2. Build each host on its target OS and architecture.
+3. Complete the platform verification runbook for every shipped artifact.
+4. Sign macOS and Windows host artifacts and publish their checksums.
+5. Confirm a clean sample application can use `go get` and `go run` without
+   manual host configuration on platforms with a packaged host.
+6. Confirm `go mod tidy` makes no unintended changes.
+7. Review public API, behavior, examples, README, specification, and runbook
+   changes together.
+8. Tag `vMAJOR.MINOR.PATCH`, push the tag, and verify the release source and
+   host artifacts are available.

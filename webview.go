@@ -1,5 +1,4 @@
-// Package webview starts an existing Go web application in the platform's
-// installed browser. It uses no CGo and embeds no browser engine.
+// Package webview runs an existing web application in a native desktop host.
 package webview
 
 import (
@@ -17,7 +16,7 @@ var (
 	ErrHostNotFound = errors.New("webview: prebuilt host not found")
 )
 
-// Options configures the browser launch for an existing web application. Set
+// Options configures a native host window for an existing web application. Set
 // Handler for an application served by this process, or StartURL for a deployed
 // HTTP(S) application.
 type Options struct {
@@ -33,8 +32,8 @@ type Options struct {
 	StartURL string
 	// StartPath is the initial absolute path for Handler mode and defaults to /.
 	StartPath string
-	// HostPath overrides discovery of the prebuilt native host executable.
-	// Leave it empty to use a host beside the application executable or on PATH.
+	// HostPath uses this native host executable instead of the packaged host.
+	// It is useful for development and custom host distributions.
 	HostPath string
 }
 

@@ -1,53 +1,59 @@
 # Platform verification runbook
 
-Run `CGO_ENABLED=0 go test ./...` and `CGO_ENABLED=0 go vet ./...` before
-testing any target platform.
+Run the package checks before a target-platform test:
+
+```sh
+go test ./...
+go vet ./...
+```
 
 ## macOS
 
-Build the host on each target architecture:
+The module packages arm64 and Intel hosts. Run the local example directly:
 
 ```sh
-scripts/build-host-macos.sh
 go run ./examples/local
 ```
 
-Verify the chrome-free WKWebView window, internal navigation, external-link
-handoff, popup routing, file input, JavaScript dialogs, print behavior, and
-window close. Sign the final host with the application's Developer ID identity
-rather than the script's ad-hoc signature.
+Verify the initial dimensions and title, internal route navigation, external
+link handoff, `window.open`, file input, JavaScript dialogs, `window.print`,
+and window close. Build a release host from `host/macos/main.swift` with
+`scripts/build-host-macos.sh`, then sign the shipped artifact with the
+application's Developer ID identity.
 
 ## Linux
 
 On the target distribution, install GTK3 and WebKitGTK 4.1 development/runtime
-packages, then build and test:
+packages. Build the host and place the resulting `webview-host` beside the
+application executable or configure `HostPath` while testing.
 
 ```sh
 scripts/build-host-linux.sh
-go run ./examples/local
 ```
 
-Record the distribution, desktop session, and package versions.
+Verify window creation, routing, popup handling, uploads, downloads, printing,
+permissions, and shutdown. Record the distribution, desktop session, and
+package versions used for the release artifact.
 
 ## Windows
 
-In a Visual Studio developer shell, install the WebView2 SDK and Runtime, set
-`WEBVIEW2_INCLUDE` to the SDK include directory, then run:
+Use a Visual Studio developer shell with the WebView2 SDK and Runtime installed.
+Set `WEBVIEW2_INCLUDE` to the SDK include directory, then build the host:
 
 ```powershell
 .\scripts\build-host-windows.ps1
-go run .\examples\local
 ```
 
-Ship `WebView2Loader.dll` beside `webview-host.exe` when using the dynamic
-loader implementation. Verify window creation, external-link handoff, popup
-routing, uploads, downloads, printing, permissions, and close behavior.
+Place `webview-host.exe` and `WebView2Loader.dll` beside the application
+executable for testing. Verify window creation, routing, popups, uploads,
+downloads, printing, permissions, and shutdown. Record Windows, WebView2
+Runtime, and SDK versions.
 
 ## Failure triage
 
-- `ErrHostNotFound`: put the matching host beside the application or set
+- `ErrHostNotFound`: package a target host beside the executable or provide
   `Options.HostPath`.
-- Host exits immediately: run it from a terminal with the same arguments to
-  identify a missing platform runtime or loader.
-- Blank page: open the supplied URL outside the host and verify the handler or
-  remote deployment first.
+- Host exits immediately: run the host with the startup arguments shown in the
+  specification to identify a missing runtime or loader.
+- Blank page: open the target URL outside the host and verify the application
+  response before investigating host behavior.
