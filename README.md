@@ -48,9 +48,15 @@ func main() {
 }
 ```
 
-On macOS, `go run .` works directly: the matching host is packaged with the
-module and is extracted for the process automatically. See
-[examples/local](examples/local) for a runnable application.
+Run the included example on macOS with:
+
+```sh
+go run ./examples/local
+```
+
+The matching macOS host is packaged with the module and extracted
+automatically. The Windows and Linux hosts must be distributed with the
+application as described below.
 
 ## Hosted application
 
@@ -117,16 +123,26 @@ executable, then on `PATH`, before using a packaged host when available.
 
 macOS Apple-silicon and Intel hosts are packaged for normal `go run` and
 application builds. Build and package the matching Windows and Linux host on
-its target platform before distributing an application there. The operational
-steps are in [docs/operations.md](docs/operations.md).
+its target platform before distributing an application there:
+
+| Target | Files beside the application executable | Runtime prerequisite |
+| --- | --- | --- |
+| macOS arm64 / amd64 | None; the matching host is embedded. | System WebKit |
+| Windows amd64 | `webview-host.exe`, `WebView2Loader.dll` | Evergreen WebView2 Runtime |
+| Linux amd64 / arm64 | `webview-host` | GTK3 and WebKitGTK 4.1 runtime libraries |
+
+The host must be executable on Linux. Use `HostPath` when a distributor puts
+these files somewhere other than the application directory. See the
+[platform runbook](docs/operations.md) for target-specific build and test
+steps.
 
 ## Platform support
 
 | Platform | Host engine | Distribution status |
 | --- | --- | --- |
 | macOS arm64 / amd64 | WKWebView | Packaged host; source and host compilation verified. |
-| Windows | WebView2 | Host source available; build and runtime verification required on Windows. |
-| Linux | WebKitGTK | Host source available; build and runtime verification required on the target distribution. |
+| Windows amd64 | WebView2 | CI builds and validates host startup; runtime UI verification required before a release. |
+| Linux amd64 | WebKitGTK | CI builds and validates host startup; runtime UI verification required before a release. |
 
 ## Development and release
 
@@ -135,8 +151,10 @@ go test ./...
 go vet ./...
 ```
 
-Use the [operations runbook](docs/operations.md) for platform checks and the
-[release checklist](docs/release.md) when publishing a version.
+Read the [change log](CHANGELOG.md) for unreleased behavior, use the
+[platform runbook](docs/operations.md) for target checks, and complete the
+[release checklist](docs/release.md) before publishing a version. The
+[specification](WEBVIEW-SPEC.md) defines the public API and navigation policy.
 
 ## License
 

@@ -15,13 +15,15 @@ desktop window and browser-engine callbacks.
 4. Host discovery, packaged-host extraction, process startup, and cleanup.
 5. macOS WKWebView host with navigation routing, popup handling, native file
    selection, and JavaScript dialogs.
-6. Windows/WebView2 and Linux/WebKitGTK host source plus target build scripts.
+6. Windows amd64/WebView2 and Linux amd64/WebKitGTK hosts with CI compilation
+   and startup validation.
 
 ## Release completion work
 
-1. Build and verify the Windows host on supported Windows versions.
-2. Build and verify the Linux host on each supported distribution.
-3. Package the matching target host with every release artifact.
+1. Complete interactive Windows host verification on supported Windows versions.
+2. Complete interactive Linux host verification on each supported distribution.
+3. Package the matching target host with every release artifact, including
+   `WebView2Loader.dll` next to the Windows host.
 4. Validate file upload, downloads, print, media permissions, popup routing,
    external-link handling, and close behavior on each target.
 5. Sign and checksum each distributed host artifact.

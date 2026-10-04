@@ -28,3 +28,26 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev
       - if: runner.os == 'Linux'
         run: scripts/build-host-linux.sh
+      - if: runner.os == 'Linux'
+        run: |
+          if ./dist/linux/amd64/webview-host --url not-a-url --title test --width 800 --height 600; then
+            echo "host accepted an invalid URL"
+            exit 1
+          else
+            test "$?" -eq 2
+          fi
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: nuget install Microsoft.Web.WebView2 -Version 1.0.3405.78 -OutputDirectory .deps
+      - if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build-host-windows.ps1 -WebView2Sdk (Get-ChildItem .deps -Directory | Select-Object -First 1 -ExpandProperty FullName)
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & ./dist/windows/amd64/webview-host.exe --url not-a-url --title test --width 800 --height 600
+          if ($LASTEXITCODE -ne 2) { throw "host accepted an invalid URL" }
