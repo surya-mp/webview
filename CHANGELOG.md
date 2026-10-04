@@ -5,6 +5,16 @@ All notable user-facing changes are recorded here. This project follows
 
 ## Unreleased
 
+## 0.2.3 - 2026-10-04
+
+### Fixed
+
+- Windows CI now captures the host's expected invalid-URL exit status without
+  PowerShell treating it as a failed native command before the smoke-test
+  assertion runs.
+
+## 0.2.2 - 2026-10-04
+
 ### Changed
 
 - Hardened Windows/WebView2 and Linux/WebKitGTK origin checks so comparison is
